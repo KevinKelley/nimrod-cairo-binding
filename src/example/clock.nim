@@ -8,10 +8,7 @@
 
 import times, math
 from cairo import nil   # force fully-qualified names
-from SDL2/SDL2 as SDL import nil
-#import SDL2/SDL2 as SDL # want to try renaming, in case this can be made to work
-                        # with SDL1.2 as well; not sure how to use 'from..import' 
-                        # with 'import..as' though.
+from SDL2 import nil
 
 
 proc error(msg: string) =
@@ -23,14 +20,16 @@ proc error(msg: string) =
     echo ex.repr
   system.quit 1
 
-proc rect(x,y,w,h:int): TRect = 
+
+proc rect(x,y,w,h:int): SDL2.TRect = 
   # convenience-constructor 
   Rect(cint(x), cint(y), cint(w), cint(h))
 
-proc mkSDLSurface(width, height: int): SDL.PSurface = 
+
+proc mkSDLSurface(width, height: int): SDL2.PSurface = 
   # create an SDL2 surface: an array of pixels in memory with
   # a layout that cairo can write.
-  return SDL.CreateRGBSurface(
+  return SDL2.CreateRGBSurface(
     cint 0, 
     cint width,
     cint height,
@@ -41,7 +40,7 @@ proc mkSDLSurface(width, height: int): SDL.PSurface =
     cint 0)          #CAIROSDL_AMASK)
 
 
-proc surface_create(sdl_surface: SDL.PSurface): ptr cairo.Tsurface =
+proc surface_create(sdl_surface: SDL2.PSurface): ptr cairo.Tsurface =
   # create a cairo surface that wraps the SDL2 surface's pixel memory,
   # so that cairo can write directly to it.
   #
@@ -56,6 +55,7 @@ proc surface_create(sdl_surface: SDL.PSurface): ptr cairo.Tsurface =
   #  However, it turns out malloc is actually safe on many (all?)
   #  platforms so we'll just go ahead anyway. 
   #
+  proc `==`(a: uint, b: int): bool = cast[int](a) == b
   assert sdl_surface.format.BytesPerPixel == 4
   assert sdl_surface.format.BitsPerPixel == 32
   assert sdl_surface.format.Rmask == 0x00FF0000
@@ -76,14 +76,16 @@ proc surface_create(sdl_surface: SDL.PSurface): ptr cairo.Tsurface =
                                               cint sdl_surface.pitch )
 
 
-proc createCairoContext*(sdl_surface: PSurface): ptr cairo.Tcairo = 
+proc createCairoContext*(sdl_surface: SDL2.PSurface): ptr cairo.Tcairo = 
+  # creates a cairo drawing-context for the SDL surface
   var surface: ptr cairo.Tsurface = surface_create(sdl_surface)
   var cr: ptr cairo.Tcairo = cairo.create(surface)
   cairo.surface_destroy(surface)
   return cr
 
 proc destroyCairoContext*(cr: ptr cairo.Tcairo) {.cdecl.} = 
-  cairo.destroy(cr)  # flushes cairo and deletes the cairo context
+  # flushes cairo and deletes the cairo context
+  cairo.destroy(cr)  
 
 
 # Draws a clock on a normalized Cairo context 
@@ -140,17 +142,17 @@ proc draw*(cr: ptr cairo.Tcairo) =
 
 # Shows how to draw with Cairo on SDL surfaces 
 
-proc draw_screen*(surface: SDL.PSurface) = 
+proc draw_screen*(surface: SDL2.PSurface) = 
   var cr: ptr cairo.Tcairo
   var status: cairo.Tstatus
   # Create a cairo drawing context, normalize it and draw a clock. 
-  var ok: bool = SDL.LockSurface(surface) == 0
+  var ok: bool = SDL2.LockSurface(surface) == 0
   cr = createCairoContext(surface)
   cairo.scale(cr, cdouble(surface.w), cdouble(surface.h))
   draw(cr)
   status = cairo.status(cr)
   destroyCairoContext(cr)
-  SDL.UnlockSurface(surface)
+  SDL2.UnlockSurface(surface)
   
   #surface is drawn and ready for painting to screen
 
@@ -161,23 +163,22 @@ proc draw_screen*(surface: SDL.PSurface) =
 
 
 
-# This function pushes a custom event onto the SDL event queue.
-#  Whenever the main loop receives it, the window will be redrawn.
-#  We can't redraw the window here, since this function could be called
-#  from another thread.
-# 
-proc timer_cb*(interval: Uint32; param: pointer): Uint32 = 
-  var event: SDL.TEvent
-  event.kind = SDL.USEREVENT
-  let rslt = SDL.PushEvent(addr(event))
-  if rslt != 1: error "pushevent"
-  #cast[nil](param)
-  return interval
+## This function pushes a custom event onto the SDL event queue.
+##  Whenever the main loop receives it, the window will be redrawn.
+##  We can't redraw the window here, since this function could be called
+##  from another thread.
+## 
+#proc timer_cb*(interval: Uint32; param: pointer): Uint32 = 
+#  var event: SDL2.TEvent
+#  event.kind = SDL2.USEREVENT
+#  let rslt = SDL2.PushEvent(addr(event))
+#  if rslt != 1: error "pushevent"
+#  return interval
 
 
 
 when isMainModule:
-  if (SDL.Init(SDL.INIT_EVERYTHING) != SDL.SdlSuccess):
+  if (SDL2.Init(SDL2.INIT_EVERYTHING) != SDL2.SdlSuccess):
     raise newException(EInvalidLibrary, "SDL Init Failed")
 
   const 
@@ -186,40 +187,42 @@ when isMainModule:
 
   # lookup the enum code for 32bpp ARGB layout
   let ARGB8888: uint32 =
-    SDL.MasksToPixelFormatEnum(cint 32, 0x00FF0000,
-                                        0x0000FF00,
-                                        0x000000FF,
-                                        0xFF000000) 
+    SDL2.MasksToPixelFormatEnum(cint 32, 0x00FF0000,
+                                         0x0000FF00,
+                                         0x000000FF,
+                                         0xFF000000) 
 
   var 
-    window : SDL.PWindow    # the app main window
-    render : SDL.PRenderer  # the renderer for it
-    surface: SDL.PSurface   # a window-sized buffer for pixels in RAM; cairo draws on this
-    texture: SDL.PTexture   # pixels on GPU, the framebuffer
+    window : SDL2.PWindow    # the app main window
+    render : SDL2.PRenderer  # the renderer for it
+    surface: SDL2.PSurface   # a window-sized buffer for pixels in RAM; cairo draws on this
+    texture: SDL2.PTexture   # pixels on GPU, the framebuffer
 
-  window = SDL.CreateWindow("Cairo/SDL Clock", 100, 100, cint width, cint height, SDL.SDL_WINDOW_SHOWN)
+  window = SDL2.CreateWindow("Cairo/SDL Clock", 
+                             100, 100, cint width, cint height, 
+                             SDL2.SDL_WINDOW_SHOWN)
   if window == nil: error "no window"
 
-  render = SDL.CreateRenderer(window, -1, SDL.Renderer_Accelerated  or 
-                                          SDL.Renderer_PresentVsync or
-                                          SDL.Renderer_TargetTexture)
+  render = SDL2.CreateRenderer(window, -1, SDL2.Renderer_Accelerated  or 
+                                           SDL2.Renderer_PresentVsync or
+                                           SDL2.Renderer_TargetTexture)
   if render == nil: error "no render"
 
   surface = mkSDLSurface(width, height)  
   if surface == nil: error "no surface"
 
-  texture = SDL.CreateTexture(render, ARGB8888,
-                               SDL.SDL_TEXTUREACCESS_STREAMING,
+  texture = SDL2.CreateTexture(render, ARGB8888,
+                               cint SDL2.SDL_TEXTUREACCESS_STREAMING,
                                cint width, cint height)
   if texture == nil: error "no texture"
 
   var
-    evt: SDL.TEvent
+    evt: SDL2.TEvent
     running = true
 
   while running:
-    while SDL.PollEvent(evt) != SDL.Bool32(0):
-      if evt.kind == SDL.QuitEvent:
+    while SDL2.PollEvent(evt) != SDL2.Bool32(0):
+      if evt.kind == SDL2.QuitEvent:
         running = false
         break
     
@@ -228,18 +231,18 @@ when isMainModule:
 
     # copy pixels to GPU...
     #var clip: TRect = rect(0,0,width,height)
-    SDL.UpdateTexture(texture, nil, surface.pixels, cint(width*sizeof(uint32)))
+    SDL2.UpdateTexture(texture, nil, surface.pixels, cint(width*sizeof(uint32)))
 
     # GPU updates the screen: clear it, then copy from texture, then present
-    SDL.Clear(render)
-    SDL.Copy(render, texture, nil, nil)
-    SDL.Present(render)
+    SDL2.Clear(render)
+    SDL2.Copy(render, texture, nil, nil)
+    SDL2.Present(render)
 
-    SDL.Delay(10)
+    SDL2.Delay(10)
 
   finally:
-    SDL.destroy texture
-    SDL.destroy surface
-    SDL.destroy render
-    SDL.destroy window
-    SDL.Quit()
+    SDL2.destroy texture
+    SDL2.destroy surface
+    SDL2.destroy render
+    SDL2.destroy window
+    SDL2.Quit()

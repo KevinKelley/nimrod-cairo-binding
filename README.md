@@ -1,7 +1,7 @@
 nimrod-cairo-binding
 ====================
 
-Cairo graphics bindings for Nimrod language
+Cairo graphics binding for Nimrod language
 
 Started by running the 'c2nim' tool on the cairo.h header, then did some renaming
 to better fit Nimrod's style.
@@ -26,5 +26,5 @@ the 'libSDL2.so' had to be given as 'libSDL2-2.0.so.0' instead.
 
 Ref:
 ---
-- Nimrod language[www.nimrod-lang.org]
-- Cairo graphics[www.cairographics.org]
+- Nimrod language [www.nimrod-lang.org]
+- Cairo graphics [www.cairographics.org]
