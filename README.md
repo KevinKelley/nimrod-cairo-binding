@@ -26,5 +26,5 @@ the 'libSDL2.so' had to be given as 'libSDL2-2.0.so.0' instead.
 
 Ref:
 ---
-Nimrod language[www.nimrod-lang.org]
-Cairo graphics[www.libcairo.org]
+- Nimrod language[www.nimrod-lang.org]
+- Cairo graphics[www.cairographics.org]
