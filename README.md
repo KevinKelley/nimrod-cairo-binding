@@ -1,5 +1,5 @@
-nimrod-cairo-bindings
-=====================
+nimrod-cairo-binding
+====================
 
 Cairo graphics bindings for Nimrod language
 
