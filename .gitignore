@@ -1,0 +1,6 @@
+# ignore the nimrod build cache
+nimcache/
+
+# ignore any generated executables
+cairo
+clock
